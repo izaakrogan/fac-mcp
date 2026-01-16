@@ -8,7 +8,8 @@ import torch
 print("Loading distilgpt2...")
 model = AutoModelForCausalLM.from_pretrained("distilgpt2")
 tokenizer = AutoTokenizer.from_pretrained("distilgpt2")
-tokenizer.pad_token = tokenizer.eos_token
+tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+model.resize_token_embeddings(len(tokenizer))
 
 DESIRED_FORMAT = '''
 We want the model to output valid JSON like:
@@ -35,7 +36,7 @@ def genrate_response(prompt: str, max_new_tokens: int = 50) -> str:
             max_new_tokens=max_new_tokens,
             do_sample=True,
             temperature=0.7,
-            pad_token_id=tokenizer.eos_token_id,
+            pad_token_id=tokenizer.pad_token_id,
         )
 
     full_output = tokenizer.decode(outputs[0], skip_special_tokens=True)

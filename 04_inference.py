@@ -35,7 +35,6 @@ def load_model():
     print(f"Loading model from {MODEL_PATH}...")
     model = AutoModelForCausalLM.from_pretrained(MODEL_PATH)
     tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
-    tokenizer.pad_token = tokenizer.eos_token
     return model, tokenizer
 
 
@@ -49,7 +48,7 @@ def generate_tool_call(model, tokenizer, prompt, max_new_tokens=60):
             max_new_tokens=max_new_tokens,
             do_sample=True,
             temperature=0.7,
-            pad_token_id=tokenizer.eos_token_id,
+            pad_token_id=tokenizer.pad_token_id,
         )
 
     full_output = tokenizer.decode(outputs[0], skip_special_tokens=True)

@@ -42,7 +42,8 @@ def main():
     print(f"\nLoading {MODEL_NAME}...")
     model = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+    model.resize_token_embeddings(len(tokenizer))
 
     data_path = Path("data/tool_calls.jsonl")
     if not data_path.exists():
