@@ -1,1 +1,6 @@
-venv/
+.venv/
+env/
+finetuned_model/
+__pycache__/
+data/
+.DS_Store
