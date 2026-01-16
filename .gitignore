@@ -4,3 +4,7 @@ finetuned_model/
 __pycache__/
 data/
 .DS_Store
+
+# Quarto/HTML README artifacts (generated locally)
+README.html
+README_files/

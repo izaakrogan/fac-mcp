@@ -65,8 +65,27 @@ def demo_outlines():
         print("outlines not installed. Run: pip install outlines")
         return
 
+    if not hasattr(outlines, "generate"):
+        print(
+            "This version of outlines does not expose outlines.generate.*; skipping outlines demo."
+        )
+        return
+
     print("\nLoading model...")
-    model = outlines.models.transformers(MODEL_PATH)
+    device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+    hf_model = AutoModelForCausalLM.from_pretrained(MODEL_PATH).to(device)
+    hf_model.eval()
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
+    tokenizer.pad_token = tokenizer.eos_token
+
+    model = outlines.models.transformers.from_transformers(hf_model, tokenizer)
+
+    if not hasattr(outlines.generate, "json"):
+        print(
+            "This version of outlines does not expose outlines.generate.json; skipping outlines demo."
+        )
+        return
+
     generator = outlines.generate.json(model, ToolCall)
 
     print("Testing...\n")
@@ -103,7 +122,7 @@ class SchemaConstrainedDecoder:
 
     def force_text(self, input_ids, text):
         tokens = self.tokenizer.encode(text, add_special_tokens=False)
-        tokens_tensor = torch.tensor([tokens])
+        tokens_tensor = torch.tensor([tokens], device=input_ids.device)
         return torch.cat([input_ids, tokens_tensor], dim=-1)
 
     def generate_string_value(self, input_ids, max_tokens=20):
@@ -113,8 +132,8 @@ class SchemaConstrainedDecoder:
                 outputs = self.model(input_ids)
                 logits = outputs.logits[0, -1, :]
 
-            next_token = torch.argmax(logits).unsqueeze(0)
-            decoded = self.tokenizer.decode(next_token)
+            next_token = torch.argmax(logits).view(1, 1)
+            decoded = self.tokenizer.decode([int(next_token.item())])
 
             if '"' in decoded:
                 generated += decoded.split('"')[0]
@@ -124,12 +143,14 @@ class SchemaConstrainedDecoder:
                 break
 
             generated += decoded
-            input_ids = torch.cat([input_ids, next_token.unsqueeze(0)], dim=-1)
+            input_ids = torch.cat([input_ids, next_token], dim=-1)
 
         return input_ids, generated
 
     def generate(self, prompt):
-        input_ids = self.tokenizer.encode(prompt, return_tensors="pt")
+        input_ids = self.tokenizer.encode(prompt, return_tensors="pt").to(
+            next(self.model.parameters()).device
+        )
 
         # Force start of JSON and "tool" key
         input_ids = self.force_text(input_ids, '{"tool": "')
@@ -196,7 +217,9 @@ The structure is guaranteed, only the values are model-generated.
         return
 
     print("Loading model...")
-    model = AutoModelForCausalLM.from_pretrained(MODEL_PATH)
+    device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+    model = AutoModelForCausalLM.from_pretrained(MODEL_PATH).to(device)
+    model.eval()
     tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
     tokenizer.pad_token = tokenizer.eos_token
 

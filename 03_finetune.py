@@ -78,7 +78,9 @@ def main():
         logging_steps=50,
         save_strategy="epoch",
         report_to="none",
-        use_cpu=not torch.cuda.is_available(),
+        # Prefer Apple Silicon GPU via MPS when available; fall back to CPU.
+        use_mps_device=torch.backends.mps.is_available(),
+        use_cpu=not (torch.cuda.is_available() or torch.backends.mps.is_available()),
         fp16=False,
     )
 

@@ -6,7 +6,10 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 
 print("Loading distilgpt2...")
-model = AutoModelForCausalLM.from_pretrained("distilgpt2")
+
+device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+model = AutoModelForCausalLM.from_pretrained("distilgpt2").to(device)
+model.eval()
 tokenizer = AutoTokenizer.from_pretrained("distilgpt2")
 tokenizer.pad_token = tokenizer.eos_token
 
@@ -28,10 +31,13 @@ TEST_PROMPTS = [
 def genrate_response(prompt: str, max_new_tokens: int = 50) -> str:
     full_prompt = f"User request: {prompt}\nTool call JSON: "
     inputs = tokenizer(full_prompt, return_tensors="pt")
+    input_ids = inputs.input_ids.to(device)
+    attention_mask = inputs.attention_mask.to(device) if hasattr(inputs, "attention_mask") else None
 
     with torch.no_grad():
         outputs = model.generate(
-            inputs.input_ids,
+            input_ids,
+            attention_mask=attention_mask,
             max_new_tokens=max_new_tokens,
             do_sample=True,
             temperature=0.7,

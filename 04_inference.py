@@ -33,19 +33,24 @@ def load_model():
         return None, None
 
     print(f"Loading model from {MODEL_PATH}...")
-    model = AutoModelForCausalLM.from_pretrained(MODEL_PATH)
+    device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+    model = AutoModelForCausalLM.from_pretrained(MODEL_PATH).to(device)
+    model.eval()
     tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
     tokenizer.pad_token = tokenizer.eos_token
-    return model, tokenizer
+    return model, tokenizer, device
 
 
-def generate_tool_call(model, tokenizer, prompt, max_new_tokens=60):
+def generate_tool_call(model, tokenizer, device, prompt, max_new_tokens=60):
     full_prompt = f"User request: {prompt}\nTool call JSON: "
     inputs = tokenizer(full_prompt, return_tensors="pt")
+    input_ids = inputs.input_ids.to(device)
+    attention_mask = inputs.attention_mask.to(device) if hasattr(inputs, "attention_mask") else None
 
     with torch.no_grad():
         outputs = model.generate(
-            inputs.input_ids,
+            input_ids,
+            attention_mask=attention_mask,
             max_new_tokens=max_new_tokens,
             do_sample=True,
             temperature=0.7,
@@ -123,7 +128,7 @@ def main():
     print("INFERENCE TEST: How well did fine-tuning work?")
     print("=" * 60)
 
-    model, tokenizer = load_model()
+    model, tokenizer, device = load_model()
     if model is None:
         return
 
@@ -131,7 +136,7 @@ def main():
 
     results = []
     for prompt in TESET_PROMPTS:
-        output = generate_tool_call(model, tokenizer, prompt)
+        output = generate_tool_call(model, tokenizer, device, prompt)
         is_valid, error, extracted = validate_tool_call(output)
         results.append((prompt, output, is_valid, error, extracted))
 
